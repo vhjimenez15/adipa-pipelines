@@ -161,7 +161,7 @@ Ambos pipelines usan `ON CONFLICT ... DO UPDATE` (UPSERT). Re-ejecutar varias ve
 | `KPI_REPORT_TIMEZONE` | `America/Bogota` | Timezone para interpretar el cron del pesado |
 | `MOCK_ORDERS_PER_RUN` | `5` | Órdenes simuladas por país por ejecución |
 | `WOOCOMMERCE_COUNTRIES` | `CL,MX,CO` | Países activos |
-| `EXCHANGE_RATE_API_URL` | `https://api.frankfurter.app` | API de tipos de cambio |
+| `EXCHANGE_RATE_API_URL` | `https://open.er-api.com` | API de tipos de cambio (soporta CLP, MXN, COP) |
 | `NGINX_USER` | `adipa` | Usuario para acceder a la UI de Prefect |
 | `NGINX_PASSWORD` | `adipa2024` | Contraseña para acceder a la UI de Prefect |
 

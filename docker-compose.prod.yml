@@ -59,7 +59,6 @@ services:
       MOCK_ORDERS_PER_RUN: ${MOCK_ORDERS_PER_RUN}
       LOG_LEVEL: INFO
       PYTHONPATH: /app/flows
-    working_dir: /app/flows
     depends_on:
       - prefect-server
     restart: always
@@ -79,7 +78,6 @@ services:
       EXCHANGE_RATE_API_URL: ${EXCHANGE_RATE_API_URL}
       LOG_LEVEL: INFO
       PYTHONPATH: /app/flows
-    working_dir: /app/flows
     depends_on:
       - prefect-server
     restart: always

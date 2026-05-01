@@ -23,14 +23,21 @@ CURRENCY_MAP = {"CL": "CLP", "MX": "MXN", "CO": "COP"}
 
 @task(retries=3, retry_delay_seconds=60)
 def fetch_exchange_rates(target_currencies: list[str]) -> dict[str, float]:
-    """Fetches CLP, MXN, COP → USD from frankfurter.app (free, no key needed)."""
+    """
+    Fetches CLP, MXN, COP → USD from open.er-api.com (free, no key needed).
+    Supports LatAm currencies unlike frankfurter.app.
+    """
     logger = get_run_logger()
-    symbols = ",".join(target_currencies)
-    resp = requests.get(f"{EXCHANGE_API}/latest?from=USD&to={symbols}", timeout=10)
+    resp = requests.get(f"{EXCHANGE_API}/v6/latest/USD", timeout=10)
     resp.raise_for_status()
-    rates = resp.json()["rates"]  # e.g. {"CLP": 950.5, "MXN": 17.2, "COP": 4050.0}
-    # We need local → USD, so invert
-    usd_rates = {currency: 1 / rate for currency, rate in rates.items()}
+    all_rates = resp.json()["rates"]  # USD-based: {"CLP": 950.5, "MXN": 17.2, ...}
+    usd_rates = {}
+    for currency in target_currencies:
+        if currency in all_rates:
+            usd_rates[currency] = 1 / all_rates[currency]
+        else:
+            logger.warning(f"{currency} not found in exchange rate API, defaulting to 1.0")
+            usd_rates[currency] = 1.0
     logger.info(f"Exchange rates (local → USD): {usd_rates}")
     return usd_rates
 
@@ -46,8 +53,13 @@ def load_raw_orders(report_date: date) -> pd.DataFrame:
           AND status IN ('completed', 'processing')
     """
     with get_conn() as conn:
-        df = pd.read_sql(query, conn, params=(report_date,))
+        with conn.cursor() as cur:
+            cur.execute(query, (report_date,))
+            cols = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
 
+    df = pd.DataFrame(rows, columns=cols)
+    df["total"] = df["total"].astype(float)
     logger.info(f"Loaded {len(df)} orders for {report_date}")
     return df
 

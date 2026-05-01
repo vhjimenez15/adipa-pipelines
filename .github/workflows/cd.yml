@@ -23,14 +23,14 @@ jobs:
 
             git pull origin main
 
-            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build --remove-orphans
 
             # Espera a que prefect-server esté healthy antes de re-registrar deployments
             echo "Waiting for prefect-server..."
             timeout 60 bash -c \
-              'until docker compose -f docker-compose.prod.yml exec -T prefect-server prefect server status 2>/dev/null; do sleep 3; done'
+              'until docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T prefect-server prefect server status 2>/dev/null; do sleep 3; done'
 
             # Re-corre el init container para actualizar schedules si cambiaron
-            docker compose -f docker-compose.prod.yml run --rm deploy
+            docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm deploy
 
             echo "Deploy finished"
