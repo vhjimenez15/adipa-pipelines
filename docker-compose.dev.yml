@@ -31,6 +31,27 @@ services:
       postgres:
         condition: service_healthy
 
+  api:
+    build:
+      context: ./api
+    env_file: .env.dev
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      API_USER: ${API_USER}
+      API_PASSWORD: ${API_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRE_HOURS: ${JWT_EXPIRE_HOURS}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
   nginx:
     build:
       context: ./nginx
