@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-and-validate:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint flows
+        run: ruff check flows/
+
+      - name: Validate docker-compose files
+        run: |
+          docker compose -f docker-compose.dev.yml config --quiet
+          docker compose -f docker-compose.prod.yml config --quiet
+        env:
+          # Valores dummy para que compose pueda parsear las variables
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+          POSTGRES_HOST: postgres
+          POSTGRES_PORT: 5432
+          PREFECT_API_URL: http://prefect-server:4200/api
+          PREFECT_UI_API_URL: http://localhost:4200/api
+          WOOCOMMERCE_COUNTRIES: CL,MX,CO
+          MOCK_ORDERS_PER_RUN: 5
+          SYNC_ORDERS_SCHEDULE: "*/15 * * * *"
+          KPI_REPORT_SCHEDULE: "0 5 * * *"
+          KPI_REPORT_TIMEZONE: America/Bogota
+          EXCHANGE_RATE_API_URL: https://api.frankfurter.app
+          NGINX_USER: ci
+          NGINX_PASSWORD: ci
+          LOG_LEVEL: DEBUG

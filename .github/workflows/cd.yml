@@ -1,0 +1,36 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            git pull origin main
+
+            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            # Espera a que prefect-server esté healthy antes de re-registrar deployments
+            echo "Waiting for prefect-server..."
+            timeout 60 bash -c \
+              'until docker compose -f docker-compose.prod.yml exec -T prefect-server prefect server status 2>/dev/null; do sleep 3; done'
+
+            # Re-corre el init container para actualizar schedules si cambiaron
+            docker compose -f docker-compose.prod.yml run --rm deploy
+
+            echo "Deploy finished"

@@ -1,0 +1,23 @@
+# ── Entornos ──────────────────────────────────────────────────────────────────
+.env.prod
+.env.local
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# ── Herramientas ──────────────────────────────────────────────────────────────
+.prefect/
+.ruff_cache/
+
+# ── Claude / AI assistants ────────────────────────────────────────────────────
+CLAUDE.md
+.claude/
+claude.json
+.cursorrules
+.aider*

@@ -1,0 +1,116 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    env_file: .env.dev
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prefect-server:
+    image: prefecthq/prefect:2.20.3-python3.11
+    command: prefect server start --host 0.0.0.0
+    env_file: .env.dev
+    environment:
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PREFECT_API_URL: ${PREFECT_API_URL}
+      PREFECT_LOGGING_LEVEL: DEBUG
+    ports:
+      - "4200:4200"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: ./nginx
+    env_file: .env.dev
+    environment:
+      NGINX_USER: ${NGINX_USER}
+      NGINX_PASSWORD: ${NGINX_PASSWORD}
+    ports:
+      - "80:80"
+    depends_on:
+      - prefect-server
+
+  worker-light:
+    build:
+      context: ./workers/light
+    env_file: .env.dev
+    environment:
+      PREFECT_API_URL: ${PREFECT_API_URL}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      WOOCOMMERCE_COUNTRIES: ${WOOCOMMERCE_COUNTRIES}
+      MOCK_ORDERS_PER_RUN: ${MOCK_ORDERS_PER_RUN}
+      LOG_LEVEL: DEBUG
+      PYTHONPATH: /app/flows
+    volumes:
+      - ./flows:/app/flows
+    working_dir: /app/flows
+    depends_on:
+      - prefect-server
+    restart: on-failure
+
+  worker-heavy:
+    build:
+      context: ./workers/heavy
+    env_file: .env.dev
+    environment:
+      PREFECT_API_URL: ${PREFECT_API_URL}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      WOOCOMMERCE_COUNTRIES: ${WOOCOMMERCE_COUNTRIES}
+      EXCHANGE_RATE_API_URL: ${EXCHANGE_RATE_API_URL}
+      LOG_LEVEL: DEBUG
+      PYTHONPATH: /app/flows
+    volumes:
+      - ./flows:/app/flows
+    working_dir: /app/flows
+    depends_on:
+      - prefect-server
+    restart: on-failure
+
+  deploy:
+    build:
+      context: ./workers/heavy
+    env_file: .env.dev
+    environment:
+      PREFECT_API_URL: ${PREFECT_API_URL}
+      SYNC_ORDERS_SCHEDULE: ${SYNC_ORDERS_SCHEDULE}
+      KPI_REPORT_SCHEDULE: ${KPI_REPORT_SCHEDULE}
+      KPI_REPORT_TIMEZONE: ${KPI_REPORT_TIMEZONE}
+      WOOCOMMERCE_COUNTRIES: ${WOOCOMMERCE_COUNTRIES}
+      MOCK_ORDERS_PER_RUN: ${MOCK_ORDERS_PER_RUN}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PYTHONPATH: /app/flows
+    volumes:
+      - ./flows:/app/flows
+    working_dir: /app/flows
+    command: python deploy.py
+    depends_on:
+      - prefect-server
+    restart: "no"
+
+volumes:
+  postgres_data:
