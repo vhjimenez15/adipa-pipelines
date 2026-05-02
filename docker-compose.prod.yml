@@ -27,6 +27,12 @@ services:
       PREFECT_LOGGING_LEVEL: WARNING
     expose:
       - "4200"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,7 +83,8 @@ services:
       LOG_LEVEL: INFO
       PYTHONPATH: /app/flows
     depends_on:
-      - prefect-server
+      prefect-server:
+        condition: service_healthy
     restart: always
 
   worker-heavy:
@@ -97,7 +104,8 @@ services:
       LOG_LEVEL: INFO
       PYTHONPATH: /app/flows
     depends_on:
-      - prefect-server
+      prefect-server:
+        condition: service_healthy
     restart: always
 
   deploy:
@@ -116,7 +124,8 @@ services:
     working_dir: /app/flows
     command: python deploy.py
     depends_on:
-      - prefect-server
+      prefect-server:
+        condition: service_healthy
     restart: "no"
 
 volumes:
