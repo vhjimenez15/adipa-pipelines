@@ -7,7 +7,7 @@ from jose import JWTError, jwt
 
 SECRET_KEY = os.environ["JWT_SECRET"]
 ALGORITHM = "HS256"
-EXPIRE_HOURS = int(os.environ.get("JWT_EXPIRE_HOURS", 24))
+EXPIRE_HOURS = int(os.environ.get("JWT_EXPIRE_HOURS") or 24)
 
 API_USER = os.environ["API_USER"]
 API_PASSWORD = os.environ["API_PASSWORD"]
