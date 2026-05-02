@@ -151,7 +151,7 @@ LOG_LEVEL=INFO
 La API corre en FastAPI con autenticación JWT. Todos los endpoints excepto `/auth/login` requieren `Authorization: Bearer <token>`.
 
 **URLs en local:**
-- Swagger UI: `http://localhost/api/docs`
+- Swagger UI: `http://localhost:8080/api/docs`
 - API directa: `http://localhost:8000`
 
 **Credenciales dev:** `adipa` / `adipa2026`
@@ -168,7 +168,7 @@ La API corre en FastAPI con autenticación JWT. Todos los endpoints excepto `/au
 | `GET` | `/api/sync-log/` | Log de ejecuciones de los pipelines |
 
 **Cómo usar el Swagger:**
-1. Ir a `http://localhost/api/docs`
+1. Ir a `http://localhost:8080/api/docs`
 2. Click en **Authorize** (botón con candado)
 3. Ingresar `adipa` / `adipa2026`
 4. Todas las peticiones del Swagger usarán el token automáticamente
@@ -179,11 +179,11 @@ La API corre en FastAPI con autenticación JWT. Todos los endpoints excepto `/au
 
 Cada flow run publica un **Artifact** con el resumen de lo que procesó. Para verlo:
 
-1. Ir a `http://localhost` (user: `adipa` / `adipa2026`)
+1. Ir a `http://localhost:8080` (user: `adipa` / `adipa2026`)
 2. Click en **Flow Runs** → entrar a cualquier run completado
 3. Pestaña **Artifacts** — aparece la tabla con los datos del run
 
-También en `http://localhost/artifacts` se ven todos los artifacts históricos.
+También en `http://localhost:8080/artifacts` se ven todos los artifacts históricos.
 
 ---
 
@@ -210,14 +210,14 @@ make run-heavy
 
 ### 3. Ver los jobs en Prefect UI
 
-1. Ir a **http://localhost** → usuario `adipa` / contraseña `adipa2026`
+1. Ir a **http://localhost:8080** → usuario `adipa` / contraseña `adipa2026`
 2. En el menú izquierdo: **Flow Runs** — aparecen todas las ejecuciones con estado (Completed / Failed)
 3. Click en cualquier run → pestaña **Artifacts** → tabla con el resumen de lo que procesó ese run
 4. Para ver los schedules registrados: menú **Deployments**
 
 ### 4. Ver los KPIs via API (Swagger)
 
-1. Ir a **http://localhost/api/docs**
+1. Ir a **http://localhost:8080/api/docs**
 2. Click en **Authorize** → ingresar `adipa` / `adipa2026`
 3. Endpoints útiles:
    - `GET /api/kpis/latest` — último reporte por país
@@ -256,8 +256,8 @@ make dev
 docker compose -f docker-compose.dev.yml --env-file .env.dev up --build
 
 # 3. URLs disponibles
-# Prefect UI:  http://localhost          (adipa / adipa2026)
-# Swagger:     http://localhost/api/docs (adipa / adipa2026)
+# Prefect UI:  http://localhost:8080          (adipa / adipa2026)
+# Swagger:     http://localhost:8080/api/docs (adipa / adipa2026)
 # API directa: http://localhost:8000
 ```
 

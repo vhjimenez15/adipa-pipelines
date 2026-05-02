@@ -60,7 +60,7 @@ services:
       NGINX_USER: ${NGINX_USER}
       NGINX_PASSWORD: ${NGINX_PASSWORD}
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - prefect-server
 
