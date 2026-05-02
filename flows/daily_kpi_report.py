@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone, date
 
 import pandas as pd
 from prefect import flow, task, get_run_logger
+from prefect.artifacts import create_table_artifact
 
 from db import get_conn, bulk_upsert
 
@@ -170,6 +171,40 @@ def log_sync(pipeline: str, rows_affected: int, started_at: datetime):
         conn.commit()
 
 
+@task
+def publish_summary(report_date: date, kpis: list[dict], prev_revenues: dict[str, float]):
+    """Publica un resumen de KPIs en la UI de Prefect."""
+    if not kpis:
+        return
+
+    rows = []
+    for kpi in kpis:
+        prev = prev_revenues.get(kpi["country_code"])
+        if prev and prev > 0:
+            vs_prev = f"{round(((kpi['revenue_usd'] - prev) / prev) * 100, 2)}%"
+        else:
+            vs_prev = "-"
+
+        top = json.loads(kpi["top_courses"]) if isinstance(kpi["top_courses"], str) else kpi["top_courses"]
+        top_str = ", ".join(f"{c['name']} ({c['units_sold']})" for c in top)
+
+        rows.append({
+            "país": kpi["country_code"],
+            "fecha": str(report_date),
+            "órdenes": kpi["total_orders"],
+            "revenue_local": f"{kpi['revenue_local']:,.2f} {kpi['currency']}",
+            "revenue_usd": f"${kpi['revenue_usd']:,.2f}",
+            "vs_día_anterior": vs_prev,
+            "top_cursos": top_str,
+        })
+
+    create_table_artifact(
+        key="daily-kpi-summary",
+        table=rows,
+        description=f"KPIs del día {report_date} por país",
+    )
+
+
 @flow(name="daily_kpi_report", log_prints=True)
 def daily_kpi_report():
     """
@@ -187,3 +222,4 @@ def daily_kpi_report():
     prev_revenues = fetch_prev_day_revenue(report_date)
     affected = upsert_kpi_report(report_date, kpis, prev_revenues)
     log_sync("daily_kpi_report", affected, started_at)
+    publish_summary(report_date, kpis, prev_revenues)

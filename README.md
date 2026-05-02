@@ -65,6 +65,87 @@ ADIPA opera WooCommerce en Chile, México y Colombia. Las monedas son distintas 
 
 ---
 
+## Variables de entorno
+
+### `.env.dev` — desarrollo local
+
+```env
+# ── Postgres ──────────────────────────────────────────────────────────────────
+POSTGRES_USER=adipa
+POSTGRES_PASSWORD=adipa_dev_pass
+POSTGRES_DB=adipa_pipelines
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+
+# ── Prefect ───────────────────────────────────────────────────────────────────
+PREFECT_API_URL=http://prefect-server:4200/api
+PREFECT_UI_API_URL=http://localhost:4200/api
+
+# ── Pipeline: sync_orders (liviano) ──────────────────────────────────────────
+SYNC_ORDERS_SCHEDULE=*/15 * * * *
+WOOCOMMERCE_COUNTRIES=CL,MX,CO
+MOCK_ORDERS_PER_RUN=5
+
+# ── Pipeline: daily_kpi_report (pesado) ───────────────────────────────────────
+# Cron en UTC. 00:00 America/Bogotá = 05:00 UTC
+KPI_REPORT_SCHEDULE=0 5 * * *
+KPI_REPORT_TIMEZONE=America/Bogota
+EXCHANGE_RATE_API_URL=https://open.er-api.com
+
+# ── FastAPI / JWT ─────────────────────────────────────────────────────────────
+API_USER=adipa
+API_PASSWORD=adipa2026
+JWT_SECRET=dev_secret_change_in_prod_min_32_chars_xx
+JWT_EXPIRE_HOURS=24
+
+# ── Nginx Basic Auth (Prefect UI) ─────────────────────────────────────────────
+NGINX_USER=adipa
+NGINX_PASSWORD=adipa2026
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+LOG_LEVEL=DEBUG
+```
+
+### `.env.prod` — producción (Hetzner)
+
+```env
+# ── Postgres ──────────────────────────────────────────────────────────────────
+POSTGRES_USER=adipa
+POSTGRES_PASSWORD=CHANGE_ME_STRONG_PASSWORD
+POSTGRES_DB=adipa_pipelines
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+
+# ── Prefect ───────────────────────────────────────────────────────────────────
+PREFECT_API_URL=http://YOUR_HETZNER_IP:4200/api
+PREFECT_UI_API_URL=http://YOUR_HETZNER_IP:4200/api
+
+# ── Pipeline: sync_orders (liviano) ──────────────────────────────────────────
+SYNC_ORDERS_SCHEDULE=*/15 * * * *
+WOOCOMMERCE_COUNTRIES=CL,MX,CO
+MOCK_ORDERS_PER_RUN=10
+
+# ── Pipeline: daily_kpi_report (pesado) ───────────────────────────────────────
+KPI_REPORT_SCHEDULE=0 5 * * *
+KPI_REPORT_TIMEZONE=America/Bogota
+EXCHANGE_RATE_API_URL=https://open.er-api.com
+
+# ── FastAPI / JWT ─────────────────────────────────────────────────────────────
+API_USER=adipa
+API_PASSWORD=CHANGE_ME_STRONG_PASSWORD
+JWT_SECRET=CHANGE_ME_MIN_32_CHARS_RANDOM_STRING
+JWT_EXPIRE_HOURS=24
+
+# ── Nginx Basic Auth (Prefect UI) ─────────────────────────────────────────────
+NGINX_USER=adipa
+NGINX_PASSWORD=CHANGE_ME_STRONG_PASSWORD
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+LOG_LEVEL=INFO
+```
+
+---
+
 ## API REST + Swagger
 
 La API corre en FastAPI con autenticación JWT. Todos los endpoints excepto `/auth/login` requieren `Authorization: Bearer <token>`.
@@ -72,6 +153,8 @@ La API corre en FastAPI con autenticación JWT. Todos los endpoints excepto `/au
 **URLs en local:**
 - Swagger UI: `http://localhost/api/docs`
 - API directa: `http://localhost:8000`
+
+**Credenciales dev:** `adipa` / `adipa2026`
 
 **Endpoints disponibles:**
 
@@ -87,8 +170,76 @@ La API corre en FastAPI con autenticación JWT. Todos los endpoints excepto `/au
 **Cómo usar el Swagger:**
 1. Ir a `http://localhost/api/docs`
 2. Click en **Authorize** (botón con candado)
-3. Ingresar usuario y contraseña (`API_USER` / `API_PASSWORD` del `.env.dev`)
+3. Ingresar `adipa` / `adipa2026`
 4. Todas las peticiones del Swagger usarán el token automáticamente
+
+---
+
+## Ver datos recolectados en Prefect UI
+
+Cada flow run publica un **Artifact** con el resumen de lo que procesó. Para verlo:
+
+1. Ir a `http://localhost` (user: `adipa` / `adipa2026`)
+2. Click en **Flow Runs** → entrar a cualquier run completado
+3. Pestaña **Artifacts** — aparece la tabla con los datos del run
+
+También en `http://localhost/artifacts` se ven todos los artifacts históricos.
+
+---
+
+## Guía rápida — ejecutar y revisar los jobs
+
+### 1. Levantar el stack
+
+```bash
+make dev
+# Esperar ~20s hasta que todos los contenedores estén healthy
+```
+
+### 2. Disparar los pipelines manualmente
+
+```bash
+# Pipeline liviano: simula órdenes de WooCommerce y las guarda en raw_orders
+make run-light
+
+# Pipeline pesado: lee raw_orders de ayer, calcula KPIs en USD y los guarda en kpi_daily_report
+make run-heavy
+```
+
+> Los pipelines también corren solos según sus crons (cada 15 min el liviano, 00:00 Bogotá el pesado).
+
+### 3. Ver los jobs en Prefect UI
+
+1. Ir a **http://localhost** → usuario `adipa` / contraseña `adipa2026`
+2. En el menú izquierdo: **Flow Runs** — aparecen todas las ejecuciones con estado (Completed / Failed)
+3. Click en cualquier run → pestaña **Artifacts** → tabla con el resumen de lo que procesó ese run
+4. Para ver los schedules registrados: menú **Deployments**
+
+### 4. Ver los KPIs via API (Swagger)
+
+1. Ir a **http://localhost/api/docs**
+2. Click en **Authorize** → ingresar `adipa` / `adipa2026`
+3. Endpoints útiles:
+   - `GET /api/kpis/latest` — último reporte por país
+   - `GET /api/kpis/` — histórico con filtros de fecha y país
+   - `GET /api/orders/summary` — órdenes agrupadas por país y fecha
+   - `GET /api/sync-log/` — log de ejecuciones (cuándo corrió cada pipeline y cuántas filas afectó)
+
+### 5. Ver los datos directo en Postgres
+
+```bash
+# Órdenes recolectadas
+psql -h localhost -p 5433 -U adipa -d adipa_pipelines \
+  -c "SELECT country_code, status, product_name, total, currency FROM raw_orders ORDER BY synced_at DESC LIMIT 10;"
+
+# KPIs por país
+psql -h localhost -p 5433 -U adipa -d adipa_pipelines \
+  -c "SELECT report_date, country_code, total_orders, revenue_local, currency, revenue_usd, vs_prev_day_pct FROM kpi_daily_report ORDER BY report_date DESC;"
+
+# Log de ejecuciones
+psql -h localhost -p 5433 -U adipa -d adipa_pipelines \
+  -c "SELECT pipeline, status, rows_affected, started_at FROM sync_log ORDER BY started_at DESC LIMIT 10;"
+```
 
 ---
 
@@ -99,17 +250,14 @@ La API corre en FastAPI con autenticación JWT. Todos los endpoints excepto `/au
 git clone <repo>
 cd adipa-pipelines
 
-# 2. Revisar variables (ya vienen con valores para dev)
-cat .env.dev
-
-# 3. Levantar todo
+# 2. Levantar todo
 make dev
 # o directamente:
-# docker compose -f docker-compose.dev.yml --env-file .env.dev up --build
+docker compose -f docker-compose.dev.yml --env-file .env.dev up --build
 
-# 4. URLs disponibles
-# Prefect UI:  http://localhost  (user: adipa / adipa2024)
-# Swagger:     http://localhost/api/docs
+# 3. URLs disponibles
+# Prefect UI:  http://localhost          (adipa / adipa2026)
+# Swagger:     http://localhost/api/docs (adipa / adipa2026)
 # API directa: http://localhost:8000
 ```
 
@@ -120,7 +268,7 @@ make dev
 make run-light
 make run-heavy
 
-# Ver datos en Postgres (puerto 5433 en dev — 5432 está ocupado por postgres local)
+# Ver datos en Postgres (puerto 5433 en dev)
 psql -h localhost -p 5433 -U adipa -d adipa_pipelines -c "SELECT * FROM raw_orders LIMIT 10;"
 psql -h localhost -p 5433 -U adipa -d adipa_pipelines -c "SELECT * FROM kpi_daily_report;"
 psql -h localhost -p 5433 -U adipa -d adipa_pipelines -c "SELECT * FROM sync_log ORDER BY finished_at DESC LIMIT 5;"
@@ -161,7 +309,7 @@ Ir a **Settings → Secrets and variables → Actions** y agregar:
 git clone https://github.com/<tu-usuario>/adipa-pipelines.git
 cd adipa-pipelines
 
-# Editar .env.prod: POSTGRES_PASSWORD, NGINX_PASSWORD, API_PASSWORD, JWT_SECRET, IP del servidor
+# Editar .env.prod con los valores reales
 nano .env.prod
 
 # Levantar
@@ -173,8 +321,8 @@ Después de esto, cada push a `main` despliega automáticamente vía CI/CD.
 ### URLs en producción
 
 ```
-http://<IP_HETZNER>          → Prefect UI  (user/pass: NGINX_USER / NGINX_PASSWORD)
-http://<IP_HETZNER>/api/docs → Swagger     (user/pass: API_USER / API_PASSWORD)
+http://<IP_HETZNER>          → Prefect UI  (NGINX_USER / NGINX_PASSWORD)
+http://<IP_HETZNER>/api/docs → Swagger     (API_USER / API_PASSWORD)
 ```
 
 ---
@@ -182,27 +330,6 @@ http://<IP_HETZNER>/api/docs → Swagger     (user/pass: API_USER / API_PASSWORD
 ## Idempotencia
 
 Ambos pipelines usan `ON CONFLICT ... DO UPDATE` (UPSERT). Re-ejecutar varias veces el mismo período no duplica filas ni rompe datos.
-
----
-
-## Variables de entorno clave
-
-| Variable | Default dev | Descripción |
-|---|---|---|
-| `POSTGRES_USER` | `adipa` | Usuario de PostgreSQL |
-| `POSTGRES_PASSWORD` | `adipa_dev_pass` | Contraseña de PostgreSQL |
-| `SYNC_ORDERS_SCHEDULE` | `*/15 * * * *` | Cron del pipeline liviano |
-| `KPI_REPORT_SCHEDULE` | `0 5 * * *` | Cron del pesado (UTC — equivale a 00:00 Bogotá) |
-| `KPI_REPORT_TIMEZONE` | `America/Bogota` | Timezone del pipeline pesado |
-| `MOCK_ORDERS_PER_RUN` | `5` | Órdenes simuladas por país por ejecución |
-| `WOOCOMMERCE_COUNTRIES` | `CL,MX,CO` | Países activos |
-| `EXCHANGE_RATE_API_URL` | `https://open.er-api.com` | API de tipos de cambio (soporta CLP, MXN, COP) |
-| `NGINX_USER` | `adipa` | Usuario Basic Auth para Prefect UI |
-| `NGINX_PASSWORD` | `adipa2024` | Contraseña Basic Auth para Prefect UI |
-| `API_USER` | `adipa` | Usuario para login en la API REST |
-| `API_PASSWORD` | `adipa2024` | Contraseña para login en la API REST |
-| `JWT_SECRET` | `dev_secret_...` | Secreto para firmar tokens JWT (cambiar en prod) |
-| `JWT_EXPIRE_HOURS` | `24` | Duración del token JWT en horas |
 
 ---
 
