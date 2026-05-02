@@ -1,5 +1,6 @@
 services:
   postgres:
+    container_name: adipa_postgres_develop
     image: postgres:15-alpine
     env_file: .env.dev
     environment:
@@ -7,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5433:5432"  # 5432 ocupado por postgres local
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -18,6 +19,7 @@ services:
       retries: 5
 
   prefect-server:
+    container_name: adipa_server_develop
     image: prefecthq/prefect:2.20.3-python3.11
     command: prefect server start --host 0.0.0.0
     env_file: .env.dev
@@ -32,6 +34,7 @@ services:
         condition: service_healthy
 
   api:
+    container_name: adipa_api_develop
     build:
       context: ./api
     env_file: .env.dev
@@ -53,6 +56,7 @@ services:
     restart: on-failure
 
   nginx:
+    container_name: adipa_nginx_develop
     build:
       context: ./nginx
     env_file: .env.dev
@@ -65,6 +69,7 @@ services:
       - prefect-server
 
   worker-light:
+    container_name: adipa_worker_light_develop
     build:
       context: ./workers/light
     env_file: .env.dev
@@ -86,6 +91,7 @@ services:
     restart: on-failure
 
   worker-heavy:
+    container_name: adipa_worker_heavy_develop
     build:
       context: ./workers/heavy
     env_file: .env.dev
@@ -107,6 +113,7 @@ services:
     restart: on-failure
 
   deploy:
+    container_name: adipa_deploy_develop
     build:
       context: ./workers/heavy
     env_file: .env.dev
