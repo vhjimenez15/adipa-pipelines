@@ -67,7 +67,8 @@ services:
   worker-light:
     container_name: adipa_worker_light_develop
     build:
-      context: ./workers/light
+      context: .
+      dockerfile: workers/light/Dockerfile
     env_file: .env.dev
     environment:
       PREFECT_API_URL: ${PREFECT_API_URL}
@@ -89,7 +90,8 @@ services:
   worker-heavy:
     container_name: adipa_worker_heavy_develop
     build:
-      context: ./workers/heavy
+      context: .
+      dockerfile: workers/heavy/Dockerfile
     env_file: .env.dev
     environment:
       PREFECT_API_URL: ${PREFECT_API_URL}
@@ -111,7 +113,8 @@ services:
   deploy:
     container_name: adipa_deploy_develop
     build:
-      context: ./workers/heavy
+      context: .
+      dockerfile: workers/heavy/Dockerfile
     env_file: .env.dev
     environment:
       PREFECT_API_URL: ${PREFECT_API_URL}

@@ -2,9 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY workers/heavy/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Flows baked in — dev override with volume mount for hot reload
+COPY flows/ ./flows/
 
 CMD ["prefect", "worker", "start", "--pool", "heavy-pool"]
