@@ -1,9 +1,12 @@
 """
 Registra los dos deployments en Prefect Server con sus schedules.
-Ejecutar una sola vez al levantar el stack: `python deploy.py`
+Ejecutar una sola vez al levantar el stack: lo corre el contenedor `deploy`.
 """
 import os
+import asyncio
 from prefect import serve
+from prefect.client.orchestration import get_client
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.schedules import CronSchedule
 
 from sync_orders import sync_orders
@@ -13,7 +16,23 @@ LIGHT_SCHEDULE = os.environ.get("SYNC_ORDERS_SCHEDULE", "*/15 * * * *")
 HEAVY_SCHEDULE = os.environ.get("KPI_REPORT_SCHEDULE", "0 5 * * *")
 TIMEZONE = os.environ.get("KPI_REPORT_TIMEZONE", "America/Bogota")
 
+
+async def ensure_work_pools():
+    """Crea los work pools si no existen — idempotente."""
+    async with get_client() as client:
+        for pool_name in ("light-pool", "heavy-pool"):
+            try:
+                await client.create_work_pool(
+                    WorkPoolCreate(name=pool_name, type="process")
+                )
+                print(f"Created work pool: {pool_name}")
+            except Exception:
+                print(f"Work pool already exists: {pool_name}")
+
+
 if __name__ == "__main__":
+    asyncio.run(ensure_work_pools())
+
     light_deployment = sync_orders.to_deployment(
         name="sync-orders-scheduled",
         work_pool_name="light-pool",
@@ -26,5 +45,4 @@ if __name__ == "__main__":
         schedule=CronSchedule(cron=HEAVY_SCHEDULE, timezone=TIMEZONE),
     )
 
-    # serve() registra y sirve ambos deployments en el mismo proceso
     serve(light_deployment, heavy_deployment)
