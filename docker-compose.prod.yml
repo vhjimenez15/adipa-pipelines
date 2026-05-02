@@ -22,7 +22,7 @@ services:
     command: prefect server start --host 0.0.0.0
     env_file: .env.prod
     environment:
-      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       PREFECT_API_URL: ${PREFECT_API_URL}
       PREFECT_LOGGING_LEVEL: WARNING
     expose:
